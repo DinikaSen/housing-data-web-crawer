@@ -2,6 +2,10 @@ from scrapy.spiders import SitemapSpider
 
 
 class HousedataSpider(SitemapSpider):
+    custom_settings = {
+            'FEED_FORMAT': 'csv',
+            'FEED_URI': 'test.csv'
+    }
     name = "housedata"
     allowed_domains = ['ikman.lk']
     sitemap_urls = [
@@ -54,7 +58,8 @@ class HousedataSpider(SitemapSpider):
        divs_details = response.xpath("//div[starts-with(@class,'ad-meta')]")
        extractedData = divs_details.xpath('.//div/text()').extract()
        try:
-           price = response.xpath("//div[starts-with(@class,'amount')]//text()").extract()[0]
+           price = response.xpath("//div[starts-with(@class,'amount')]//text()").extract()[0].split("Rs")[1].strip()
+           price = float(price.replace(',',''))
        except IndexError:
            price = '-'
        extractedData = divs_details.xpath('.//div/text()').extract()
@@ -72,13 +77,15 @@ class HousedataSpider(SitemapSpider):
                 bathrooms = '-'
        if ("House size: " in extractedData):
             try:
-                house_size = extractedData[extractedData.index('House size: ')+1]
+                house_size = extractedData[extractedData.index('House size: ')+1].split(" ")[0]
+                house_size = float(house_size.replace(',',''))
                 entryFound = 1
             except IndexError:
                 house_size = '-'
        if ("Land size: " in extractedData):
             try:
-                land_size = extractedData[extractedData.index('Land size: ')+1]
+                land_size = extractedData[extractedData.index('Land size: ')+1].split(" ")[0]
+                land_size = float(land_size.replace(',',''))
                 entryFound = 1
             except IndexError:
                 land_size = '-'
@@ -88,15 +95,28 @@ class HousedataSpider(SitemapSpider):
                 entryFound = 1
             except IndexError:
                 location = '-'
+       description_div_details = response.xpath("//div[starts-with(@class,'description-section')]")
+       try:
+           description_data = description_div_details.xpath('.//div/p').extract()
+           description_elements = []
+           for element in description_data :
+                element = element.replace("<p>", "").replace("</p>", "").strip()
+                if (len(element) > 0) :
+                    description_elements.append(element)
+           if (len(description_elements) == 0) :
+                description_elements = '-'
+       except IndexError:
+           description_elements = '-'
        if (entryFound > 0):
            yield {
                 'house_size' : house_size,
                 'land_size' : land_size,
                 'bedrooms' : bedrooms,
                 'bathrooms' : bathrooms,
-                'location' : location,
-                'price' : price,
-                'title' : title,
+                'town': town,
                 'date_posted': date_posted,
-                'town': town
+                'title' : title,
+                'location' : location,
+                'description' : description_elements,
+                'price' : price
            }
